@@ -1,1 +1,1 @@
-# End-to-End-DevOps-Automation-Platform-on-AWS-
+# End-to-End-DevOps-Automation-Platform-on-AWS
