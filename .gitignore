@@ -1,0 +1,16 @@
+#local terraform dir
+.terraform/*
+
+#terraform(tf) state files
+*.tfstate.*
+
+terraform.tfstate
+
+#tf variable files, may incluse sensitive data
+*.tfvars
+
+
+crash.log
+
+# Terraform CLI binary
+terraform.exe
