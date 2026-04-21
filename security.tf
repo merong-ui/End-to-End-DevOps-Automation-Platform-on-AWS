@@ -10,7 +10,13 @@ resource "aws_security_group" "sg" {
     protocol = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
+ # App (Flask)
+  ingress {
+    from_port   = 5000
+    to_port     = 5000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 # Allow Jenkins (Port 8080) for the GitHub Webhook
   ingress {
     from_port = 8080
