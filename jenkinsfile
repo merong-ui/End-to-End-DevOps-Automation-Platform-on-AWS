@@ -15,9 +15,10 @@ pipeline {
 
         stage('Checkout Code') {
             steps {
-                // Pull source code from GitHub repository
-                git 'https://github.com/merong-ui/End-to-End-DevOps-Automation-Platform-on-AWS.git'
-            }
+                //Pull code from GitHub repository using SSH-based authentication (no tokens or passwords)
+                git credentialsId: 'github-ssh',
+                    url: 'git@github.com:merong-ui/End-to-End-DevOps-Automation-Platform-on-AWS.git'
+             }
         }
 
         stage('Build Docker Image') {
