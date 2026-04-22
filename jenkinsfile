@@ -16,7 +16,8 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 //Pull code from GitHub repository using SSH-based authentication (no tokens or passwords)
-                git credentialsId: 'github-ssh',
+                git branch: 'main',
+                    credentialsId: 'github-ssh',
                     url: 'git@github.com:merong-ui/End-to-End-DevOps-Automation-Platform-on-AWS.git'
              }
         }
