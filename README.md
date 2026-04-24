@@ -12,87 +12,69 @@ Automated AWS DevOps Platform: Integrating IaC, Containerized CI/CD, and Observa
 
 
 ## Project Overview
-This project demonstrates a production-ready DevOps ecosystem that bridges the gap between development and operations. It moves beyond simple scripts to Monitoring-enabled, cost-optimized, and secure pipeline using Infrastructure and Pipeline as Code.
+End-to-end DevOps automation platform on AWS that automates application deployment using CI/CD, Infrastructure as Code, and containerization. It integrates GitHub, Jenkins, Docker, and AWS services to build, deploy, and monitor a Python Flask application.
+
+Terraform provisions scalable infrastructure, while Jenkins automates the pipeline to build, push, and deploy Docker images to EC2 via Amazon ECR. The system also includes monitoring with CloudWatch, EventBridge, Lambda, and SNS, along with EC2 scheduling for cost optimization.
 
 ## Core Technology Stack
 - **Infrastructure**: Terraform (AWS Provider)
 - **CI/CD**: Jenkins (Dockerized with Socket Mounting)
 - **Containerization**: Docker & Amazon ECR
-- **Operations**: CloudWatch, AWS Lambda, Amazon SNS, EventBridge
+- **Cloud Services**: EC2, IAM, CloudWatch, EventBridge, Lambda, SNS
 - **App Stack**: Python Flask
 
 ## System Architecture
-The platform follows a Modular DevOps architecture ensuring that each component handles a specific part of the lifecycle:
+The system follows a modular CI/CD workflow:
 
   1. Developer pushes code to GitHub.
-
-  2. GitHub Webhook triggers a Jenkins build immediately.
-
-  3. Jenkins (running in Docker) builds a new image via the host's Docker socket.
-
-  4. The image is versioned and pushed to Amazon ECR using IAM Role authentication.
-
-  5. The updated container is deployed to the EC2 production environment.
-
-  6. CloudWatch collects metrics and logs, while EventBridge listens for events (such as instance state changes) and routes them to Lambda, which triggers SNS alerts.
+  2. GitHub Webhook triggers Jenkins pipeline
+  3. Jenkins (running in Docker on EC2) pulls code and builds Docker image
+  4. Docker image is pushed to Amazon ECR
+  5. EC2 pulls latest image and deploys the updated container
+  6. CloudWatch collects logs and metrics
+  7. EventBridge detects system events and triggers Lambda
+  8. Lambda sends alerts through SNS (email notifications)
     
 
 ## Phase 1: Infrastructure as Code (Terraform)
 The foundation is built to be 100% reproducible. I used Terraform to eliminate "Configuration Drift."
 
-- **Networking**: Custom VPC with Public Subnets and specialized Route Tables.
-- **Persistence**: Attached an Elastic IP to the host to ensure the Jenkins URL remains static across instance restarts.
-- **Security**: Implemented a Security Group firewall following the Principle of Least Privilege, exposing only ports 22, 80, 8080, and 5000.
+- Provisioned AWS infrastructure using Terraform
+- Created custom VPC with public subnets and routing configuration
+- Attached Elastic IP to ensure consistent Jenkins endpoint
+- Configured Security Groups using least privilege principles (ports: 22, 80, 8080, 5000)
 
-## Application & Containerization
+## Phase 2: Application & Containerization
 
-** Flask App**
+**Flask App**
 
- A lightweight Python application used to validate the deployment pipeline.
+A lightweight Python Flask app used to validate CI/CD pipeline functionality.
 
- Python
+**Dockerfile**
 
-    from flask import Flask
-    app = Flask(__name__)
+Optimized for a small footprint and security.
 
-    @app.route('/')
-    def home():
-        return "DevOps App Running Successfully!"
+- Built using python:3.9-slim base image
+- Optimized for lightweight deployment
+- Exposes application on port 5000
 
-    if __name__ == "__main__":
-        app.run(host='0.0.0.0', port=5000)
-        
-  **Dockerfile**
+## Phase 3: CI/CD Pipeline (Jenkins)
 
-  Optimized for a small footprint and security.
+- Jenkins runs in a Docker container on EC2
+- Uses Docker socket mounting to build and manage containers on the host
+- Fully automated pipeline using Jenkinsfile (Declarative Pipeline)
+- GitHub Webhook enables continuous integration without manual triggers
 
-    FROM python:3.9-slim
-    WORKDIR /app
-    COPY . .
-    RUN pip install -r requirements.txt
-    EXPOSE 5000
-    CMD ["python", "app.py"]
-    
+**Security**
+- IAM Instance Profile used for secure ECR access
+- No hardcoded AWS credentials
 
-## Phase 2: Secure CI/CD Pipeline (Jenkins)
+## Phase 4: Reliability & Cost Optimization
 
-The pipeline is defined as a Declarative Jenkinsfile, ensuring the build logic is version-controlled.
-
-**Jenkins Setup**:
-
-Jenkins runs inside a Docker container on an EC2 instance and uses the host’s Docker engine to build and deploy application containers on the same machine.
-
-**Key Technical Differentiators:**
-
-- **Docker-outside-of-Docker**: Mounted /var/run/docker.sock to the Jenkins container, allowing it to manage the host’s Docker daemon without the overhead of nested virtualization.
-- **Identity-Based Security**: Used IAM Instance Profiles. Jenkins assumes a role to push to ECR, meaning zero AWS Access Keys are stored on the server.
-- **Webhooks**: Achieved true Continuous Integration by removing the need for manual build triggers.
-
-
-## Phase 3: Reliability & Cost Optimization
 **Real-Time Monitoring (SRE Approach)**
 
 Instead of traditional polling, I implemented Event-Driven Monitoring:
+- **CloudWatch** monitors logs and system metrics
 - **EventBridge** detects instance state-changes (e.g., stopped or failure).
 - **Lambda** processes the event and publishes a critical alert to an SNS Topic.
 - **Result**: The DevOps team receives an email notification within seconds of a failure.
@@ -100,9 +82,9 @@ Instead of traditional polling, I implemented Event-Driven Monitoring:
 **Automated Cost Efficiency**
 
 To adhere to the AWS Well-Architected Framework (Cost Optimization pillar):
-- Created a serverless "Light Switch" using EventBridge Schedules.
+- Automated EC2 start/stop using EventBridge schedules
 - Cron Job: Automatically toggles the EC2 instance (Stop at 6 PM / Start at 9 AM).
-- Business Impact: Reduces monthly infrastructure burn-rate by approximately 60%.
+- Business Impact: Reduces compute usage during non-business hours.
   
 ## Proof of Work (Screenshots)
 
