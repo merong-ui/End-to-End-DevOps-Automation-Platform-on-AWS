@@ -1,60 +1,114 @@
 pipeline {
-    agent any  // Run pipeline on any available Jenkins agent
+    agent any
 
     environment {
-        REGION = "${AWS_REGION}"  
+        // AWS Region
+        REGION = "<AWS_REGION>"
 
-        // Full ECR repo (used for tagging + pushing)
-        ECR = "<AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/myapp"
+        // ECR Repository
+        ECR = "<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/<APP_NAME>"
 
-        // ECR registry only (used for login)
-        ECR_REGISTRY = "<AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com"
+        // ECR Registry Endpoint
+        ECR_REGISTRY = "<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com"
     }
 
     stages {
 
-        stage('Checkout Code') {
+        stage('Checkout Source Code') {
             steps {
-                //Pull code from GitHub repository using SSH-based authentication (no tokens or passwords)
+
+                // Pull application code from GitHub using Jenkins SSH credentials
                 git branch: 'main',
-                    credentialsId: '<JENKINS_CREDENTIAL>',
-                    url: 'git@github.com:<ORG>/<REPO>.git'
-             }
+                    credentialsId: '<JENKINS_GITHUB_CREDENTIAL>',
+                    url: 'git@github.com:<ORG_NAME>/<REPOSITORY>.git'
+
+                script {
+                    // Create a short Git commit ID for versioned image tagging
+                    env.IMAGE_TAG = sh(
+                        script: 'git rev-parse --short HEAD',
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Building image version: ${IMAGE_TAG}"
+                }
+            }
         }
 
         stage('Build Docker Image') {
             steps {
-                // Build and tag image directly for ECR
-                sh "docker build -t $ECR:latest ."
+
+                // Build Docker image with both:
+                // - Commit version tag
+                // - latest tag
+
+                sh """
+                docker build \
+                  -t ${ECR}:${IMAGE_TAG} \
+                  -t ${ECR}:latest .
+                """
             }
         }
 
-        stage('Login to ECR') {
+        stage('Authenticate to Amazon ECR') {
             steps {
-                // Authenticate Docker to AWS ECR using IAM role (secure, no stored credentials)
+
+                // Login securely to ECR using IAM permissions
+
                 sh '''
-                aws ecr get-login-password --region $REGION | \
-                docker login --username AWS --password-stdin $ECR_REGISTRY
+                aws ecr get-login-password --region ${REGION} | \
+                docker login \
+                  --username AWS \
+                  --password-stdin ${ECR_REGISTRY}
                 '''
             }
         }
 
         stage('Push Image to ECR') {
             steps {
-                // Push image to ECR repository
-                sh "docker push $ECR:latest"
+
+                // Push both immutable and latest tags
+
+                sh """
+                docker push ${ECR}:${IMAGE_TAG}
+                docker push ${ECR}:latest
+                """
             }
         }
 
-        stage('Deploy to EC2') {
+        stage('Deploy Application') {
             steps {
-                // Replace old container with new version
-                sh '''
-                docker stop myapp || true
-                docker rm myapp || true
-                docker run -d -p 80:5000 --name myapp $ECR:latest
-                '''
+
+                sh """
+                docker pull ${ECR}:${IMAGE_TAG}
+
+                docker stop <CONTAINER_NAME> || true
+                docker rm <CONTAINER_NAME> || true
+
+                docker run -d \
+                  --restart unless-stopped \
+                  -p 80:5000 \
+                  --name <CONTAINER_NAME> \
+                  ${ECR}:${IMAGE_TAG}
+                """
             }
+        }
+    }
+
+    post {
+
+        success {
+            echo "Deployment successful → ${IMAGE_TAG}"
+        }
+
+        failure {
+            echo "Deployment failed"
+        }
+
+        always {
+
+            // Cleanup unused Docker images
+
+            sh 'docker image prune -f || true'
         }
     }
 }
