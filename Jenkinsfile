@@ -2,13 +2,13 @@ pipeline {
     agent any  // Run pipeline on any available Jenkins agent
 
     environment {
-        REGION = "us-east-1"  
+        REGION = "${AWS_REGION}"  
 
         // Full ECR repo (used for tagging + pushing)
-        ECR = "217428065218.dkr.ecr.us-east-1.amazonaws.com/myapp"
+        ECR = "<AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/myapp"
 
         // ECR registry only (used for login)
-        ECR_REGISTRY = "217428065218.dkr.ecr.us-east-1.amazonaws.com"
+        ECR_REGISTRY = "<AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com"
     }
 
     stages {
@@ -17,8 +17,8 @@ pipeline {
             steps {
                 //Pull code from GitHub repository using SSH-based authentication (no tokens or passwords)
                 git branch: 'main',
-                    credentialsId: 'github-ssh',
-                    url: 'git@github.com:merong-ui/End-to-End-DevOps-Automation-Platform-on-AWS.git'
+                    credentialsId: '<JENKINS_CREDENTIAL>',
+                    url: 'git@github.com:<ORG>/<REPO>.git'
              }
         }
 
